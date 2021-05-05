@@ -1,0 +1,23 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "appName": {
+            "value": "salmonapidev"
+        },
+        "slotNames": {
+            "value": [
+                "stage"
+            ]
+        },
+        "aspSku": {
+            "value": "p1v3"
+        },
+        "vnetResourceId": {
+            "value": "/subscriptions/0aba2ef8-fd83-4066-abf0-8f5be9c9ad8c/resourceGroups/rg-network/providers/Microsoft.Network/virtualNetworks/vnet-dmz-01"
+        },
+        "subnetAddressPrefix": {
+            "value": "10.0.0.192/26"
+        }
+    }
+}

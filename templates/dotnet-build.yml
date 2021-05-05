@@ -1,0 +1,76 @@
+parameters:
+  - name: infraAdoProject
+    type: string
+    default: Azure
+  - name: infraPipeline
+    type: string
+    default: Hoppy7.ArmTemplates
+  - name: solutionFile
+    type: string
+    default: '**/*.csproj'
+
+stages:
+- stage: Build_CI
+  jobs:
+  - job: Build_CI
+    pool:
+      vmImage: $(agentImage)
+    steps:
+      - checkout: self
+        clean: true
+        fetchDepth: 1
+      
+      - task: DownloadBuildArtifacts@0
+        condition: succeeded()
+        displayName: Download ArmTemplates Artifact
+        inputs:
+          buildType: specific
+          project: ${{ parameters.infraAdoProject}}
+          pipeline: ${{ parameters.infraPipeline}}
+          specificBuildWithTriggering: true
+          buildVersionToDownload: latest
+          allowPartiallySucceededBuilds: false
+          downloadType: single
+          artifactName: drop
+          downloadPath: $(Build.ArtifactStagingDirectory)\armTemplates
+
+      - task: DotNetCoreCLI@2
+        condition: succeeded()
+        displayName: DotNetCore Restore
+        inputs:
+          command: restore
+          projects: ${{ parameters.solutionFile}}
+  
+      - task: DotNetCoreCLI@2
+        condition: succeeded()
+        displayName: DotNetCore Build
+        inputs:
+          projects: ${{ parameters.solutionFile}}
+  
+      - task: DotNetCoreCLI@2
+        condition: succeeded()
+        displayName: DotNetCore Test
+        inputs:
+          command: test
+          projects: ${{ parameters.solutionFile}}
+  
+      - task: DotNetCoreCLI@2
+        condition: succeeded()
+        displayName: DotNetCore Publish
+        inputs:
+          command: publish
+          publishWebProjects: false
+          projects: ${{ parameters.solutionFile}}
+          arguments: --no-restore --configuration Release --output $(Build.ArtifactStagingDirectory)
+        
+      - task: CopyFiles@2
+        condition: succeeded()
+        displayName: Copy Files to ArtifactStagingDirectory
+        inputs:
+          sourceFolder: $(Build.SourcesDirectory)
+          contents: '**'
+          targetFolder: $(Build.ArtifactStagingDirectory)
+
+      - task: PublishBuildArtifacts@1
+        condition: succeeded()
+        displayName: Publish Artifact - drop

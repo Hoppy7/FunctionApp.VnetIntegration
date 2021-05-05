@@ -1,0 +1,99 @@
+name: '$(Date:yyyyMMdd)$(Rev:.r)'
+
+resources:
+  pipelines:
+    - pipeline: Hoppy7ArmTemplates
+      project: Azure
+      source: Hoppy7.ArmTemplates
+      trigger:
+        branches:
+          include:
+            - master
+
+trigger: 
+  batch: false
+  branches: 
+    include:
+      - main
+  paths:
+    include:
+      - '*'
+
+variables:
+  agentImage: windows-2019
+  solutionFile: '**/*.csproj'
+
+  infraAdoProject: Azure
+  infraPipeline: Hoppy7.ArmTemplates
+  armTemplate: drop/ArmTemplates/drop/Web/function.vnetIntegrated.json
+  armParamsDev: drop/armParams/parameters.dev.json
+  armParamsStage: drop/armParams/parameters.stage.json
+  armParamsProd: drop/armParams/parameters.prod.json
+
+  azureSubscription: RossHopkinsIC
+  resourceGroupName: RG-FunctionApp-VnetIntegration
+  location: westus2
+  functionAppName: salmonapi
+  vnetResourceId: /subscriptions/0aba2ef8-fd83-4066-abf0-8f5be9c9ad8c/resourceGroups/rg-network/providers/Microsoft.Network/virtualNetworks/vnet-dmz-01
+  subnetSize: 25
+
+  storageAccountResourceId: /subscriptions/0aba2ef8-fd83-4066-abf0-8f5be9c9ad8c/resourceGroups/RG-ADO-LogStreamer/providers/Microsoft.Storage/storageAccounts/adologstreamerstg1
+  storageAccountQueue: pipelineruns
+
+stages:
+- template: templates/dotnet-build.yml
+  parameters:
+    infraAdoProject: $(infraAdoProject)
+    infraPipeline: $(infraPipeline)
+    solutionFile: $(solutionFile)
+
+- template: templates/functionApp-release.yml
+  parameters:
+    environmentName: Development
+    agentImage: $(agentImage)
+    functionAppName: $(functionAppName)dev
+    vnetResourceId: $(vnetResourceId)
+    subnetSize: $(subnetSize)
+    azureSubscription: $(azureSubscription)
+    resourceGroupName: $(resourceGroupName)-Dev
+    location: $(location)
+    armTemplate: $(armTemplate)
+    armTemplateParams: $(armParamsDev)
+    deploymentMode: Complete
+    cleanup: true
+
+- template: templates/functionApp-release.yml
+  parameters:
+    environmentName: Staging
+    agentImage: $(agentImage)
+    functionAppName: $(functionAppName)stage
+    vnetResourceId: $(vnetResourceId)
+    subnetSize: $(subnetSize)
+    azureSubscription: $(azureSubscription)
+    resourceGroupName: $(resourceGroupName)-Stage
+    location: $(location)
+    armTemplate: $(armTemplate)
+    armTemplateParams: $(armParamsStage)
+    deploymentMode: Complete
+    cleanup: true
+
+- template: templates/functionApp-release.yml
+  parameters:
+    environmentName: Production
+    agentImage: $(agentImage)
+    functionAppName: $(functionAppName)
+    vnetResourceId: $(vnetResourceId)
+    subnetSize: $(subnetSize)
+    azureSubscription: $(azureSubscription)
+    resourceGroupName: $(resourceGroupName)-Prod
+    location: $(location)
+    armTemplate: $(armTemplate)
+    armTemplateParams: $(armParamsProd)
+    deploymentMode: Complete
+    cleanup: false
+
+- template: templates/streamLogs.yml
+  parameters:
+    azureSubscription: $(azureSubscription)
+    storageAccountResourceId: $(storageAccountResourceId)
+    storageAccountQueue: $(storageAccountQueue)
